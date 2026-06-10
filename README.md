@@ -69,7 +69,7 @@ The `.ioc` file can be opened in STM32CubeIDE to see the peripheral configuratio
 1. Open the `.ioc` in **STM32CubeIDE** (or import the project directly).
 2. Build (the HAL drivers are included, so it should compile as-is).
 3. Flash to a Nucleo-F411RE via the onboard ST-Link.
-4. Open a serial terminal on the **ST-Link Virtual COM Port** at **115200 baud, 8-N-1**.
+4. Open a serial terminal on the **ST-Link Virtual COM Port** at **115200 baud**.
 5. Press the board's reset button to see the startup identification lines, followed by the live data stream.
 
 Wiring: both sensors share PB6 (SCL) and PB7 (SDA), powered from 3V3 and GND. The MPU6050's `AD0` pin is tied to GND to fix its address at `0x68`. No external pull-up resistors are needed — the breakout boards include their own.
