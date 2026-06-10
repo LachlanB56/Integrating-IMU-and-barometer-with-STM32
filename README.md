@@ -34,7 +34,7 @@ Built in C using the STM32 HAL, configured with STM32CubeMX/CubeIDE, with result
 ## How It Works
 
 ### 1. Sensor bring-up
-Each sensor is verified by reading its identity register before use — the MPU6050's `WHO_AM_I` (`0x75`) and the BMP280's chip-ID (`0xD0`) — and only then woken/configured. The MPU6050 boots in sleep mode, so `0x00` is written to its power-management register (`0x6B`) to wake it; the BMP280 is put into normal measurement mode via its control register (`0xF4`).
+Each sensor is verified by reading its identity register before use — the MPU6050's `WHO_AM_I` (`0x75`) and the BMP280's chip-ID (`0xD0`)  - and only then woken/configured. The MPU6050 boots in sleep mode, so `0x00` is written to its power-management register (`0x6B`) to wake it; the BMP280 is put into normal measurement mode via its control register (`0xF4`).
 
 ### 2. Attitude estimation (MPU6050)
 Raw 16-bit signed accelerometer values give a gravity vector, from which pitch and roll are derived geometrically. The gyroscope gives angular velocity (scaled by 131 LSB/°·s⁻¹ at the default ±250°/s range). The complementary filter blends them:
@@ -92,7 +92,6 @@ This was my first embedded systems project from scratch, and the value was as mu
 
 The bring-up was not smooth, and working through the failures was the most instructive part:
 
-- **Toolchain mismatch:** an early project was accidentally generated targeting IAR/EWARM instead of STM32CubeIDE, so it had no build configuration. Diagnosed by spotting the `EWARM` folder and absent `.cproject`; fixed by regenerating with the correct toolchain target.
 - **I²C bus stuck `BUSY`:** the peripheral reported `HAL_BUSY` on the very first transaction, before touching any device. Isolated it to the MCU side with a sensor-disconnect test, and resolved it with a manual bus-reset routine plus correcting the system clock (the project had defaulted to a bare 16 MHz HSI with the PLL off, giving I²C an unhealthy peripheral clock).
 - **Physical connections:** persistent NACKs traced to marginal breadboard contacts — a sensor measuring 3.3 V at idle (held up by the *other* sensor's pull-ups) while not actually being electrically connected. Found by measuring each sensor's signal pins independently and confirming with an I²C address scanner.
 - **Clone chip identity:** the MPU6050 returned a `WHO_AM_I` of `0x70` instead of the expected `0x68` — a common trait of clone modules. The chip is otherwise fully register-compatible; the ID check just needed updating.
