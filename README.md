@@ -11,7 +11,7 @@ Built in C using the STM32 HAL, configured with STM32CubeMX/CubeIDE, with result
 - Brings up two I²C sensors on a single shared bus (SCL/SDA), each at its own address.
 - Reads the MPU6050's accelerometer and gyroscope (14-byte burst read from `0x3B`).
 - Computes **pitch** and **roll** from the accelerometer using `atan2`, and **angular rates** from the gyroscope.
-- Fuses the two with a **complementary filter** — high-pass on the gyro (responsive, but drifts), low-pass on the accelerometer (stable, but noisy) — to get a clean, drift-corrected attitude estimate.
+- Fuses the two with a **complementary filter**  high-pass on the gyro, low-pass on the accelerometer to get a clean, drift-corrected attitude estimate.
 - Reads the BMP280's raw pressure and temperature, applies **Bosch's calibration/compensation formulas**, and converts pressure to **altitude** using the barometric formula.
 - Streams everything over UART (115200 baud) for live monitoring.
 
