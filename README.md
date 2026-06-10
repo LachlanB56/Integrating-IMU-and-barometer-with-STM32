@@ -84,11 +84,11 @@ This was my first embedded systems project from scratch, and the value was as mu
 - **I²C at a low level** — addressing and the 7-bit-to-8-bit shift, register-based reads/writes (`HAL_I2C_Mem_Read/Write`), the difference between bus-level status (NACK, BUSY, timeout) and device-level identity checks, and how pull-ups and the shared-bus topology actually work.
 - **Sensor fusion fundamentals** — why a gyroscope alone drifts, why an accelerometer alone is noisy, and how a complementary filter combines them; the importance of measuring real `dt`.
 - **Fixed-point / integer math** — reading the BMP280 datasheet's compensation formulas, handling signed vs. unsigned coefficients correctly, and printing decimals without floating point.
-- **Hardware reality** — that "the code looks right" and "the electrons cooperate" are two different things, and that a multimeter and a methodical isolation process are the real debugging tools.
+- **Hardware reality** — that the code looking right and the project actually working are two different things, and how a methodical approach with the multimeter can be helpful in these situations.
 
 ---
 
-## Debugging Challenges (The Honest Version)
+## Debugging Challenges 
 
 The bring-up was not smooth, and working through the failures was the most instructive part:
 
