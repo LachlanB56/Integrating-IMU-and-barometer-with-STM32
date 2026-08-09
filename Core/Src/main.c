@@ -47,6 +47,8 @@
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 
+TIM_HandleTypeDef htim3;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -63,6 +65,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 //temperature compensation formula given on datasheet
 int32_t BMP280_T_Compensation(int32_t adc_temp){
@@ -141,6 +144,55 @@ void I2C_BusReset(void)
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);
     HAL_Delay(1);
 }
+
+#define SERVO_MID_US   1500
+#define SERVO_MIN_US   1000
+#define SERVO_MAX_US   2000
+
+typedef struct {
+    float kp, ki, kd;
+    float integral;
+    float prev_meas;
+    float i_limit;      // anti-windup clamp
+    float out_limit;
+} PID_t;
+
+static PID_t pid_roll  = {.kp=3.3f, .ki=1.1f, .kd=0.5f, .i_limit=100.0f, .out_limit=350.0f};
+static PID_t pid_pitch = {.kp=4.1f, .ki=0.8f, .kd=0.3f, .i_limit=100.0f, .out_limit=350.0f};
+
+static float PID_Update(PID_t *p, float setpoint, float meas, float dt)
+{
+    float error = setpoint - meas;
+
+    p->integral += error * dt;
+    if (p->integral >  p->i_limit) p->integral =  p->i_limit;
+    if (p->integral < -p->i_limit) p->integral = -p->i_limit;
+
+    // derivative on measurement, not error — avoids kicks when setpoint changes
+    float deriv = (meas - p->prev_meas) / dt;
+    p->prev_meas = meas;
+
+    float out = p->kp * error + p->ki * p->integral - p->kd * deriv;
+
+    if (out >  p->out_limit) {
+    	out =  p->out_limit;
+    }
+    if (out < -p->out_limit) {
+    	out = -p->out_limit;
+    }
+    return out;
+}
+
+static void Servo_Write(TIM_HandleTypeDef *htim, uint32_t channel, float pulse_us)
+{
+    if (pulse_us < SERVO_MIN_US) {
+    	pulse_us = SERVO_MIN_US;
+    }
+    if (pulse_us > SERVO_MAX_US) {
+    	pulse_us = SERVO_MAX_US;
+    }
+    __HAL_TIM_SET_COMPARE(htim, channel, (uint32_t)pulse_us);
+}
 /* USER CODE END 0 */
 
 /**
@@ -172,9 +224,9 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  I2C_BusReset();
   MX_I2C1_Init();
   MX_USART2_UART_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
   // used this for debugging it returns the address of the modules
@@ -211,6 +263,8 @@ int main(void)
   printf("PWR_MGMT_1 after wake = 0x%02X\r\n", check);
   val = 0x27;
   HAL_I2C_Mem_Write(&hi2c1, BMP280_ADDR, BMP280_REG_PWR, I2C_MEMADD_SIZE_8BIT, &val, 1, 100);
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -289,15 +343,21 @@ int main(void)
 	 	  	printf("Altitude = %.2f m\r\n", altitude);
 
 	 	  	HAL_Delay(100);
+	 	  	// inside the loop, every dt seconds:
+	 	  	float roll_out  = PID_Update(&pid_roll,  0.0f, filteredroll,  dt);   // 0 = wings level
+	 	  	float pitch_out = PID_Update(&pid_pitch, 0.0f, filteredpitch, dt);
+
+
+	 	  	Servo_Write(&htim3, TIM_CHANNEL_1, SERVO_MID_US + pitch_out + roll_out);
+	 	  	Servo_Write(&htim3, TIM_CHANNEL_2, SERVO_MID_US + pitch_out - roll_out);
 
 	 	  	last = now;
 
 
 
   /* USER CODE END 3 */
-  }
 }
-
+}
 /**
   * @brief System Clock Configuration
   * @retval None
@@ -375,6 +435,70 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 99;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 19999;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.Pulse = 1500;
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
+  HAL_TIM_MspPostInit(&htim3);
 
 }
 

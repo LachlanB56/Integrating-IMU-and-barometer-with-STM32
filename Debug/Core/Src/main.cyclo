@@ -1,0 +1,11 @@
+../Core/Src/main.c:71:9:BMP280_T_Compensation	1
+../Core/Src/main.c:84:9:BMP280_P_Compensation	2
+../Core/Src/main.c:110:5:_write	1
+../Core/Src/main.c:116:6:I2C_BusReset	2
+../Core/Src/main.c:153:5:main	8
+../Core/Src/main.c:317:6:SystemClock_Config	3
+../Core/Src/main.c:364:13:MX_I2C1_Init	2
+../Core/Src/main.c:398:13:MX_TIM3_Init	7
+../Core/Src/main.c:462:13:MX_USART2_UART_Init	2
+../Core/Src/main.c:495:13:MX_GPIO_Init	1
+../Core/Src/main.c:518:6:Error_Handler	1
